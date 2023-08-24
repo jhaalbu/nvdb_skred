@@ -6,21 +6,24 @@ st.title('NVDB skreddata')
 
 vegreferanse = st.text_input('Vegreferanse', 'Rv5')
 
-skred = nvdbapiv3.nvdbFagdata(445)
-skred.filter({'vegsystemreferanse' : vegreferanse})
+try:
+    skred = nvdbapiv3.nvdbFagdata(445)
+    skred.filter({'vegsystemreferanse' : vegreferanse})
 
-df = pd.DataFrame.from_records(skred.to_records())
-df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
+    df = pd.DataFrame.from_records(skred.to_records())
+    df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
 
-df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
-df_utvalg['Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
+    df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
+    df_utvalg['Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
 
-st.write(df_utvalg)
+    st.write(df_utvalg)
 
 
-data = df_utvalg.pivot_table(
-    index=df_utvalg.Skred_dato.dt.year,
-    columns='Type_skred',
-    aggfunc='size')
+    data = df_utvalg.pivot_table(
+        index=df_utvalg.Skred_dato.dt.year,
+        columns='Type_skred',
+        aggfunc='size')
 
-st.bar_chart(data)
+    st.bar_chart(data)
+except:
+    st.write('Ingen skred i valgt vegreferanse, eller ugyldig vegreferanse')
