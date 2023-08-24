@@ -4,7 +4,7 @@ import nvdbapiv3
 
 st.title('NVDB skreddata')
 
-vegreferanse = st.text_input('Vegreferanse', 'Rv5 S8D1')
+vegreferanse = st.text_input('Vegreferanse', 'Rv5')
 
 skred = nvdbapiv3.nvdbFagdata(445)
 skred.filter({'vegsystemreferanse' : vegreferanse})
