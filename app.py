@@ -215,7 +215,7 @@ if utvalg == 'Vegreferanse uvida':
             st.write(filtered_df)
 
 
-            st.altair_chart(plot(filtered_df, tittel=''), use_container_width=True)
+            st.altair_chart(plot(filtered_df), use_container_width=True)
 
             kart(filtered_df)
         except:
