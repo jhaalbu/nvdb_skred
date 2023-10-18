@@ -1,3 +1,7 @@
 streamlit
 pandas
 nvdbapi-v3
+altair
+folium
+streamlit_folium
+geopandas
