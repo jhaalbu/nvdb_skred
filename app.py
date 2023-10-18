@@ -12,7 +12,7 @@ def plot(data_df):
         'Stein': 'rgb(178,178,178)',
         'Is/stein': 'rgb(115,150,150)',
         'Jord/løsmasse': 'rgb(168,112,0)',
-        'Flomskred (vann+stein+jord)': 'rgb(255,211,127)',
+        'Flomskred (vann+stein+jord)': 'rgb(0,112,255)',
         'Is': 'rgb(115,255,223)',
         'Snø' : 'rgb(255,255,255)',
         'Sørpeskred (vann+snø+stein)' : 'rgb(201, 165, 117)',}
