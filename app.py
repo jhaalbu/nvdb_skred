@@ -53,7 +53,7 @@ def style_function(feature):
     'Stein': '#b2b2b2',  # RGB converted to HEX
     'Is/stein': '#73ffdf',
     'Jord/løsmasse': '#a87000',
-    'Flomskred (vann+stein+jord)': '#ffd37f',
+    'Flomskred (vann+stein+jord)': '#0070FF',
     'Is': '#73ffdf',
     'Snø': '#ffffff',
     'Sørpeskred (vann+snø+stein)': '#c9a575',
