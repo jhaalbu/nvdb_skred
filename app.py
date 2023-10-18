@@ -90,7 +90,7 @@ def kart(filtered_df):
         ).add_to(m)
     return streamlit_folium.folium_static(m)
 
-
+st.set_page_config(page_title='NVDB skreddata', page_icon=None, layout="centered", initial_sidebar_state="auto", menu_items=None)
 
 st.title('NVDB skreddata')
 st.write('Henter data fra NVDB api v3, ved nedhenting av fylker og heile landet tek det ein del tid  (1-5 min))')
