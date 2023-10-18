@@ -65,11 +65,12 @@ def style_function(feature):
     }
 
 def kart(filtered_df):
-    filtered_df['geometry'] = filtered_df['geometri'].apply(wkt.loads)
+    filtered_df.loc[:, 'geometry'] = filtered_df['geometri'].apply(wkt.loads)
     gdf = gpd.GeoDataFrame(filtered_df, geometry='geometry')
     gdf.crs = "EPSG:32633"
     gdf_wgs84 = gdf.to_crs("EPSG:4326")
-    gdf_wgs84 = gdf_wgs84.applymap(lambda x: x.strftime('%Y-%m-%d') if isinstance(x, pd.Timestamp) else x)
+    for column in gdf_wgs84.columns:
+        gdf_wgs84[column] = gdf_wgs84[column].apply(lambda x: x.strftime('%Y-%m-%d') if isinstance(x, pd.Timestamp) else x)
 
 
     middle_idx = len(gdf_wgs84) // 2
@@ -90,10 +91,21 @@ def kart(filtered_df):
         ).add_to(m)
     return streamlit_folium.folium_static(m)
 
+def databehandling(skred):
+    
+    df = pd.DataFrame.from_records(skred.to_records())
+    df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
+
+    df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
+    df_utvalg['Skred_dato'] = pd.to_datetime(df_utvalg['Skred_dato'], errors='coerce')
+    #df_utvalg.loc[:, 'Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
+    return df_utvalg
+
 st.set_page_config(page_title='NVDB skreddata', page_icon=None, layout="centered", initial_sidebar_state="auto", menu_items=None)
 
+
 st.title('NVDB skreddata')
-st.write('Henter data fra NVDB api v3, ved nedhenting av fylker og heile landet tek det ein del tid  (1-5 min))')
+st.write('Henter data fra NVDB api v3, ved nedhenting av fylker og heile landet tek det ein del tid å hente data')
 
 utvalg = st.radio('Velg utaksmåte', ['Vegreferanse', 'Vegreferanse uvida', 'Landsdekkande', 'Fylke', 'Kontraktsområde'])
 
@@ -122,11 +134,7 @@ if utvalg == 'Fylke':
         skred = nvdbapiv3.nvdbFagdata(445)
         skred.filter({'fylke' : fylker[fylke]})
 
-        df = pd.DataFrame.from_records(skred.to_records())
-        df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
-
-        df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
-        df_utvalg['Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
+        df_utvalg = databehandling(skred)
 
         data = df_utvalg.pivot_table(
         index=df_utvalg.Skred_dato.dt.year,
@@ -139,21 +147,20 @@ if utvalg == 'Fylke':
 
 if utvalg == 'Landsdekkande':
     st.write('OBS! Tar lang tid å hente data')
+
     if st.button('Hent skreddata'):
         skred = nvdbapiv3.nvdbFagdata(445)
 
-        df = pd.DataFrame.from_records(skred.to_records())
-        df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
-
-        df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
-        df_utvalg['Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
+        df_utvalg = databehandling(skred)
 
         st.altair_chart(plot(df_utvalg), use_container_width=True)
 
         kart(df_utvalg)
 
 if utvalg == 'Vegreferanse':
-    st.write('Kunn for heile vegstrekninger, bruk vegreferanse uvida for detaljerte strekninger')
+    st.write('Kunn for heile vegstrekninger, eller heile vegklasser')
+    st.write('Eksempel: Rv5, Fv53, Ev39')
+    st.write('Det går og an å gi inn Rv, Ev, eller Fv for alle skred på vegklassene.')
     vegreferanse = st.text_input('Vegreferanse', 'Rv5')
 
     if st.button('Hent skreddata'):
@@ -174,44 +181,45 @@ if utvalg == 'Vegreferanse':
 
 if utvalg == 'Vegreferanse uvida':
     vegnummer = st.text_input('Vegnummer', 'Rv5')
-    delstrekning_fra = st.number_input('Delstrekning fra (S6D1 = 6)', 6)
-    delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', 8)
+    delstrekning_fra = st.number_input('Delstrekning fra (S6D1 = 6)', 1)
     meterverdi_fra = st.number_input('Meterverdi fra', 0)
+    delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', 8)
     meterverdi_til = st.number_input('Meterverdi til', 1000)
     vegreferanse = f'{vegnummer}S{delstrekning_fra}-{delstrekning_til}'
 
 
     if st.button('Hent skreddata'):
-        #try:
-        skred = nvdbapiv3.nvdbFagdata(445)
-        skred.filter({'vegsystemreferanse' : vegreferanse})
+        try:
+            skred = nvdbapiv3.nvdbFagdata(445)
+            skred.filter({'vegsystemreferanse' : vegreferanse})
 
-        df = pd.DataFrame.from_records(skred.to_records())
-        df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
+            df_utvalg = databehandling(skred)
+            
+            # Extract segment as int
+            df_utvalg['segment'] = df_utvalg['vref'].str.extract(r'S(\d+)D\d+').astype(int)
+            df_utvalg[['start_distance', 'end_distance']] = df_utvalg['vref'].str.extract(r'm(\d+)-(\d+)')
 
-        df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
-        df_utvalg['Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
-        
-        # Extract segment as int
-        df_utvalg['segment'] = df_utvalg['vref'].str.extract(r'S(\d+)D\d+').astype(int)
-        df_utvalg[['start_distance', 'end_distance']] = df_utvalg['vref'].str.extract(r'm(\d+)-(\d+)')
+            # Convert the extracted distances to int
+            df_utvalg['start_distance'] = df_utvalg['start_distance'].astype(int)
+            df_utvalg['end_distance'] = df_utvalg['end_distance'].astype(int)
 
-        # Convert the extracted distances to int
-        df_utvalg['start_distance'] = df_utvalg['start_distance'].astype(int)
-        df_utvalg['end_distance'] = df_utvalg['end_distance'].astype(int)
-
-        # Step 2: Data Filtering
+            # Step 2: Data Filtering
 
 
 
-        condition1 = (df_utvalg['segment'] == delstrekning_fra) & (df_utvalg['start_distance'] >= meterverdi_fra)
-        condition2 = (df_utvalg['segment'] > delstrekning_fra) & (df_utvalg['segment'] < delstrekning_til)
-        condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
+            condition1 = (df_utvalg['segment'] == delstrekning_fra) & (df_utvalg['start_distance'] >= meterverdi_fra)
+            condition2 = (df_utvalg['segment'] > delstrekning_fra) & (df_utvalg['segment'] < delstrekning_til)
+            condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
 
-        filtered_df = df_utvalg[condition1 | condition2 | condition3]
-        st.write(filtered_df)
+            filtered_df = df_utvalg[condition1 | condition2 | condition3]
+            st.write(filtered_df)
 
 
-        st.altair_chart(plot(filtered_df), use_container_width=True)
+            st.altair_chart(plot(filtered_df, tittel=''), use_container_width=True)
 
-        kart(filtered_df)
+            kart(filtered_df)
+        except:
+            st.write('Ugylding vegreferanse eller vegreferanse uten skredhendelser')
+    
+if utvalg == 'Kontraktsområde':
+    st.write('Ikkje implementert enda')
