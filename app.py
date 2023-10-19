@@ -6,7 +6,7 @@ import geopandas as gpd
 from shapely import wkt
 import folium
 import streamlit_folium
-import xlsxwriter
+#import xlsxwriter
 from io import BytesIO
 
 def skred_type_by_month(data_df):
