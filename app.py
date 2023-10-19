@@ -311,10 +311,10 @@ st.title('NVDB skreddata')
 st.write('Henter data fra NVDB api v3, ved nedhenting av fylker og heile landet tek det ein del tid å hente data')
 col_tid_fra, col_tid_til = st.columns(2)
 with col_tid_fra:
-    fradato = st.date_input('Fra dato', value=pd.to_datetime('2000-01-01'))
+    fradato = st.date_input('Fra dato', value=pd.to_datetime('2000-01-01'), min_value=pd.to_datetime('1900-01-01'), max_value=pd.to_datetime(datetime.today().strftime('%Y-%m-%d')))
     fradato = str(fradato)
 with col_tid_til:
-    tildato = st.date_input('Til dato', value=pd.to_datetime(datetime.today().strftime('%Y-%m-%d')))
+    tildato = st.date_input('Til dato', value=pd.to_datetime(datetime.today().strftime('%Y-%m-%d')), min_value=pd.to_datetime('1900-01-01'), max_value=pd.to_datetime(datetime.today().strftime('%Y-%m-%d')))
     tildato = str(tildato)
 losneomrade = st.multiselect(
     'Velg løsneområder',
