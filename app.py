@@ -6,6 +6,8 @@ import geopandas as gpd
 from shapely import wkt
 import folium
 import streamlit_folium
+import xlsxwriter
+from io import BytesIO
 
 def skred_type_by_month(data_df):
     color_map = {
@@ -221,6 +223,17 @@ def kart(df):
         ).add_to(m)
     return streamlit_folium.folium_static(m)
 
+def last_ned_shape(skred):
+    df = pd.DataFrame.from_records(skred.to_records())
+    df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 
+                    'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 
+                    'geometri', 'vref']].copy() 
+
+    df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
+    df['geometri'] = df['geometri'].apply(wkt.loads)
+    gdf = gpd.GeoDataFrame(df, geometry='geometry')
+    gdf.crs = "EPSG:32633"
+    return gdf
 
 def create_point_map(df):
     # Convert 'geometri' column to GeoSeries
@@ -229,7 +242,7 @@ def create_point_map(df):
 
     # Set the coordinate system for the GeoDataFrame to UTM 33N
     gdf.crs = "EPSG:32633"
-    
+
     # Transform to WGS 84
     gdf = gdf.to_crs("EPSG:4326")
 
@@ -277,6 +290,14 @@ def databehandling(skred):
 
     return df_utvalg
 
+def last_ned_excel(df):
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+    df.to_excel(writer, sheet_name='Sheet1')
+    writer.save()
+    processed_data = output.getvalue()
+    return processed_data
+
 st.set_page_config(page_title='NVDB skreddata', page_icon=None, layout="centered", initial_sidebar_state="auto", menu_items=None)
 
 
@@ -311,7 +332,13 @@ if utvalg == 'Fylke':
         skred.filter({'fylke' : fylker[fylke]})
 
         df_utvalg = databehandling(skred)
-
+        st.download_button(
+            "Last ned skredpunkt",
+            df_utvalg.to_csv().encode("utf-8"),
+            "klimadata.csv",
+            "text/csv",
+            key="download-csv",
+        )
         st.altair_chart(plot(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
@@ -325,7 +352,13 @@ if utvalg == 'Landsdekkande':
         skred = nvdbapiv3.nvdbFagdata(445)
 
         df_utvalg = databehandling(skred)
-
+        st.download_button(
+            "Last ned skredpunkt",
+            df_utvalg.to_csv().encode("utf-8"),
+            "klimadata.csv",
+            "text/csv",
+            key="download-csv",
+        )
         st.altair_chart(plot(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
@@ -343,7 +376,13 @@ if utvalg == 'Vegreferanse':
         skred.filter({'vegsystemreferanse' : vegreferanse})
 
         df_utvalg = databehandling(skred)
-
+        st.download_button(
+            "Last ned skredpunkt",
+            df_utvalg.to_csv().encode("utf-8"),
+            "klimadata.csv",
+            "text/csv",
+            key="download-csv",
+        )
         st.altair_chart(plot(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
@@ -352,13 +391,18 @@ if utvalg == 'Vegreferanse':
 
 
 if utvalg == 'Vegreferanse uvida':
+    
     vegnummer = st.text_input('Vegnummer', 'Rv5')
-    delstrekning_fra = st.number_input('Delstrekning fra (S6D1 = 6)', 1)
-    meterverdi_fra = st.number_input('Meterverdi fra', 0)
-    delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', 8)
-    meterverdi_til = st.number_input('Meterverdi til', 1000)
+    col1, col2 = st.columns(2)
+    with col1:
+        delstrekning_fra = st.number_input('Delstrekning fra (S1D1 = 1)', 1)
+        delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', 8)
+    with col2:
+        meterverdi_fra = st.number_input('Meterverdi fra', 0)
+        meterverdi_til = st.number_input('Meterverdi til', 20000)
     vegreferanse = f'{vegnummer}S{delstrekning_fra}-{delstrekning_til}'
 
+    karttype = st.radio('Vis kart med linjer eller punkter', ['Punkter', 'Linjer'])
 
     if st.button('Hent skreddata'):
         #try:
@@ -384,14 +428,23 @@ if utvalg == 'Vegreferanse uvida':
         condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
 
         filtered_df = df_utvalg[condition1 | condition2 | condition3]
-        st.write(filtered_df)
-
-
+        #st.write(filtered_df)
+  
+        st.download_button(
+            "Last ned skredpunkt",
+            filtered_df.to_csv().encode("utf-8"),
+            "klimadata.csv",
+            "text/csv",
+            key="download-csv",
+        )
         st.altair_chart(plot(filtered_df), use_container_width=True)
         st.altair_chart(skred_type_counts(filtered_df), use_container_width=True)
         st.altair_chart(skred_type_by_month(filtered_df), use_container_width=True)
 
-        kart(filtered_df)
+        if karttype == 'Punkter':
+            streamlit_folium.folium_static(create_point_map(filtered_df))
+        if karttype == 'Linjer':
+            kart(filtered_df)
         #except:
         st.write('Ugylding vegreferanse eller vegreferanse uten skredhendelser')
     
