@@ -6,7 +6,6 @@ import geopandas as gpd
 from shapely import wkt
 import folium
 import streamlit_folium
-import xlsxwriter
 from io import BytesIO
 from datetime import datetime
 
