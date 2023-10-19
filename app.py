@@ -7,6 +7,129 @@ from shapely import wkt
 import folium
 import streamlit_folium
 
+def skred_type_by_month(data_df):
+    color_map = {
+        'Stein': 'rgb(178,178,178)',
+        'Is/stein': 'rgb(115,150,150)',
+        'Jord/løsmasse': 'rgb(168,112,0)',
+        'Flomskred (vann+stein+jord)': 'rgb(0,112,255)',
+        'Is': 'rgb(115,255,223)',
+        'Snø' : 'rgb(255,255,255)',
+        'Sørpeskred (vann+snø+stein)' : 'rgb(201, 165, 117)',
+    }
+    month_mapping = {
+        'January': 'Januar',
+        'February': 'Februar',
+        'March': 'Mars',
+        'April': 'April',
+        'May': 'Mai',
+        'June': 'Juni',
+        'July': 'Juli',
+        'August': 'August',
+        'September': 'September',
+        'October': 'Oktober',
+        'November': 'November',
+        'December': 'Desember'
+    }
+
+    # Create a month column
+    data_df['month'] = data_df['Skred_dato'].dt.strftime('%B')
+    
+    # Translate month names to Norwegian
+    data_df['month'] = data_df['month'].map(month_mapping)
+
+    # Group data by month and type and count occurrences
+    data_grouped = data_df.groupby(['month', 'Type_skred']).size().reset_index(name='count')
+
+    # Color mapping
+    
+
+    # Create the chart
+    chart = alt.Chart(data_grouped).mark_bar().encode(
+        x=alt.X('month:O', title='Måned', axis=alt.Axis(titleFont='Courier', titleFontSize=12, labelColor='white', titleColor='white', gridColor='#555555'), sort=list(month_mapping.values())),  # Use the Norwegian month names for sorting
+        y=alt.Y('count:Q', title='Antall hendelser', axis=alt.Axis(titleFont='Courier', titleFontSize=12, labelColor='white', titleColor='white', gridColor='#555555'), stack=True),
+        color=alt.Color('Type_skred:N', legend=alt.Legend(title="Skredtype"), scale=alt.Scale(domain=list(color_map.keys()), range=list(color_map.values()))),
+        tooltip=['month', 'Type_skred', 'count']
+    ).properties(
+        title={
+        "text": 'Skredhendelser per måned',
+        "fontSize": 16,
+        "color": 'white',
+        "anchor": 'middle',   # Centers the title
+        "offset": 20          # Adds a bit more space around the title
+        },
+        padding={"top": 30} 
+    ).configure(
+        background='#333333'  # Dark background
+    ).configure_title(
+        fontSize=16,
+        font='Courier',
+        color='white'
+    ).configure_legend(
+        titleFontSize=12,
+        labelFontSize=10,
+        titleColor='white',
+        labelColor='white'
+    )
+
+    return chart
+
+def skred_type_counts(data_df):
+    color_map = {
+        'Stein': 'rgb(178,178,178)',
+        'Is/stein': 'rgb(115,150,150)',
+        'Jord/løsmasse': 'rgb(168,112,0)',
+        'Flomskred (vann+stein+jord)': 'rgb(0,112,255)',
+        'Is': 'rgb(115,255,223)',
+        'Snø' : 'rgb(255,255,255)',
+        'Sørpeskred (vann+snø+stein)' : 'rgb(201, 165, 117)',
+    }
+
+    # Aggregating the data
+    skred_counts = data_df['Type_skred'].value_counts().reset_index()
+    skred_counts.columns = ['Type_skred', 'count']
+
+    # Main bar chart
+    bars = alt.Chart(skred_counts).mark_bar().encode(
+        x=alt.X('Type_skred:N', title='Skredtype', axis=alt.Axis(titleFont='Courier', titleFontSize=12, labelColor='white', titleColor='white', gridColor='#555555')),
+        y=alt.Y('count:Q', title='Antall hendelser', axis=alt.Axis(titleFont='Courier', titleFontSize=12, labelColor='white', titleColor='white', gridColor='#555555')),
+        color=alt.Color('Type_skred:N', legend=alt.Legend(title="Skredtype"), scale=alt.Scale(domain=list(color_map.keys()), range=list(color_map.values()))),
+        tooltip=['Type_skred', 'count']
+    )
+
+    # Text above bars
+    text = bars.mark_text(
+        align='center',
+        baseline='bottom',
+        dy=-10  # Adjust this value to shift the text's vertical position
+    ).encode(
+        text='count:Q'
+    )
+
+    chart = (bars + text).properties(
+        title={
+        "text": 'Skredhendelser per type',
+        "fontSize": 16,
+        "color": 'white',
+        "anchor": 'middle',   # Centers the title
+        "offset": 20          # Adds a bit more space around the title
+        },
+        padding={"top": 30}  
+    ).configure(
+        background='#333333'  # Dark background
+    ).configure_title(
+        fontSize=16,
+        font='Courier',
+        color='white'
+    ).configure_legend(
+        titleFontSize=12,
+        labelFontSize=10,
+        titleColor='white',
+        labelColor='white'
+    )
+    
+    return chart
+
 def plot(data_df):
     color_map = {
         'Stein': 'rgb(178,178,178)',
@@ -32,7 +155,14 @@ def plot(data_df):
         color=alt.Color('Type_skred:N', legend=alt.Legend(title="Skredtype"), scale=alt.Scale(domain=list(color_map.keys()), range=list(color_map.values()))),
         tooltip=['Skred_dato', 'Type_skred', 'count']
     ).properties(
-        title='Skredhendelser'
+        title={
+        "text": 'Skredhendelser',
+        "fontSize": 16,
+        "color": 'white',
+        "anchor": 'middle',   # Centers the title
+        "offset": 20          # Adds a bit more space around the title
+        },
+        padding={"top": 30} 
     ).configure(
         background='#333333'  # Dark background
     ).configure_title(
@@ -64,9 +194,9 @@ def style_function(feature):
         'weight': 6  # Optional: Sets the thickness of the line
     }
 
-def kart(filtered_df):
-    filtered_df.loc[:, 'geometry'] = filtered_df['geometri'].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(filtered_df, geometry='geometry')
+def kart(df):
+    df['geometry'] = df['geometri'].apply(wkt.loads)
+    gdf = gpd.GeoDataFrame(df, geometry='geometry')
     gdf.crs = "EPSG:32633"
     gdf_wgs84 = gdf.to_crs("EPSG:4326")
     for column in gdf_wgs84.columns:
@@ -91,14 +221,60 @@ def kart(filtered_df):
         ).add_to(m)
     return streamlit_folium.folium_static(m)
 
+
+def create_point_map(df):
+    # Convert 'geometri' column to GeoSeries
+    df['geometry'] = df['geometri'].apply(wkt.loads)
+    gdf = gpd.GeoDataFrame(df, geometry='geometry')
+
+    # Set the coordinate system for the GeoDataFrame to UTM 33N
+    gdf.crs = "EPSG:32633"
+    
+    # Transform to WGS 84
+    gdf = gdf.to_crs("EPSG:4326")
+
+    # Compute midpoints
+    gdf['midtpunkt'] = gdf['geometry'].interpolate(0.5, normalized=True)
+
+    # Determine center of the map
+    center = gdf['midtpunkt'].unary_union.centroid
+    m = folium.Map(location=[center.y, center.x], zoom_start=10)
+
+    # Define colormap
+    color_map = {
+        'Stein': '#b2b2b2',
+        'Is/stein': '#73ffdf',
+        'Jord/løsmasse': '#a87000',
+        'Flomskred (vann+stein+jord)': '#0070FF',
+        'Is': '#73ffdf',
+        'Snø': '#ffffff',
+        'Sørpeskred (vann+snø+stein)': '#c9a575',
+    }
+
+    # Add midpoints to the map
+    for _, row in gdf.iterrows():
+        point_color = color_map.get(row['Type_skred'], '#000000')  # Default to black if not found
+        folium.CircleMarker(
+            location=[row['midtpunkt'].y, row['midtpunkt'].x],
+            radius=5,
+            color=point_color,
+            fill=True,
+            fill_opacity=0.6,
+            popup=row['Skred_dato']  # This will show the Type_skred value when clicking on a point
+        ).add_to(m)
+    
+    return m
+
 def databehandling(skred):
     
     df = pd.DataFrame.from_records(skred.to_records())
-    df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
+    df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 
+                    'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 
+                    'geometri', 'vref']].copy() 
 
     df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
     df_utvalg['Skred_dato'] = pd.to_datetime(df_utvalg['Skred_dato'], errors='coerce')
-    #df_utvalg.loc[:, 'Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
+
     return df_utvalg
 
 st.set_page_config(page_title='NVDB skreddata', page_icon=None, layout="centered", initial_sidebar_state="auto", menu_items=None)
@@ -136,12 +312,9 @@ if utvalg == 'Fylke':
 
         df_utvalg = databehandling(skred)
 
-        data = df_utvalg.pivot_table(
-        index=df_utvalg.Skred_dato.dt.year,
-        columns='Type_skred',
-        aggfunc='size')
-
         st.altair_chart(plot(df_utvalg), use_container_width=True)
+        st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
+        st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
 
         kart(df_utvalg)
 
@@ -154,7 +327,8 @@ if utvalg == 'Landsdekkande':
         df_utvalg = databehandling(skred)
 
         st.altair_chart(plot(df_utvalg), use_container_width=True)
-
+        st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
+        st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
         kart(df_utvalg)
 
 if utvalg == 'Vegreferanse':
@@ -168,15 +342,13 @@ if utvalg == 'Vegreferanse':
         skred = nvdbapiv3.nvdbFagdata(445)
         skred.filter({'vegsystemreferanse' : vegreferanse})
 
-        df = pd.DataFrame.from_records(skred.to_records())
-        df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 'geometri', 'vref']]
-
-        df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
-        df_utvalg['Skred_dato'] = df['Skred dato'].astype('datetime64[ns]')
+        df_utvalg = databehandling(skred)
 
         st.altair_chart(plot(df_utvalg), use_container_width=True)
+        st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
+        st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
 
-        kart(df_utvalg)
+        streamlit_folium.folium_static(create_point_map(df_utvalg))
 
 
 if utvalg == 'Vegreferanse uvida':
@@ -189,37 +361,39 @@ if utvalg == 'Vegreferanse uvida':
 
 
     if st.button('Hent skreddata'):
-        try:
-            skred = nvdbapiv3.nvdbFagdata(445)
-            skred.filter({'vegsystemreferanse' : vegreferanse})
+        #try:
+        skred = nvdbapiv3.nvdbFagdata(445)
+        skred.filter({'vegsystemreferanse' : vegreferanse})
 
-            df_utvalg = databehandling(skred)
-            
-            # Extract segment as int
-            df_utvalg['segment'] = df_utvalg['vref'].str.extract(r'S(\d+)D\d+').astype(int)
-            df_utvalg[['start_distance', 'end_distance']] = df_utvalg['vref'].str.extract(r'm(\d+)-(\d+)')
+        df_utvalg = databehandling(skred)
+        
+        # Extract segment as int
+        df_utvalg['segment'] = df_utvalg['vref'].str.extract(r'S(\d+)D\d+').astype(int)
+        df_utvalg[['start_distance', 'end_distance']] = df_utvalg['vref'].str.extract(r'm(\d+)-(\d+)')
 
-            # Convert the extracted distances to int
-            df_utvalg['start_distance'] = df_utvalg['start_distance'].astype(int)
-            df_utvalg['end_distance'] = df_utvalg['end_distance'].astype(int)
+        # Convert the extracted distances to int
+        df_utvalg['start_distance'] = df_utvalg['start_distance'].astype(int)
+        df_utvalg['end_distance'] = df_utvalg['end_distance'].astype(int)
 
-            # Step 2: Data Filtering
-
-
-
-            condition1 = (df_utvalg['segment'] == delstrekning_fra) & (df_utvalg['start_distance'] >= meterverdi_fra)
-            condition2 = (df_utvalg['segment'] > delstrekning_fra) & (df_utvalg['segment'] < delstrekning_til)
-            condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
-
-            filtered_df = df_utvalg[condition1 | condition2 | condition3]
-            st.write(filtered_df)
+        # Step 2: Data Filtering
 
 
-            st.altair_chart(plot(filtered_df), use_container_width=True)
 
-            kart(filtered_df)
-        except:
-            st.write('Ugylding vegreferanse eller vegreferanse uten skredhendelser')
+        condition1 = (df_utvalg['segment'] == delstrekning_fra) & (df_utvalg['start_distance'] >= meterverdi_fra)
+        condition2 = (df_utvalg['segment'] > delstrekning_fra) & (df_utvalg['segment'] < delstrekning_til)
+        condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
+
+        filtered_df = df_utvalg[condition1 | condition2 | condition3]
+        st.write(filtered_df)
+
+
+        st.altair_chart(plot(filtered_df), use_container_width=True)
+        st.altair_chart(skred_type_counts(filtered_df), use_container_width=True)
+        st.altair_chart(skred_type_by_month(filtered_df), use_container_width=True)
+
+        kart(filtered_df)
+        #except:
+        st.write('Ugylding vegreferanse eller vegreferanse uten skredhendelser')
     
 if utvalg == 'Kontraktsområde':
     st.write('Ikkje implementert enda')
