@@ -438,8 +438,8 @@ if utvalg == 'Vegreferanse':
         delstrekning_fra = st.number_input('Delstrekning fra (S1D1 = 1)', 1)
         delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', 8)
     with col2:
-        meterverdi_fra = st.number_input('Meterverdi fra', 0)
-        meterverdi_til = st.number_input('Meterverdi til', 20000)
+        meterverdi_fra = st.number_input('Meterverdi fra', value=0)
+        meterverdi_til = st.number_input('Meterverdi til', value=20000, min_value=0)
     vegreferanse = f'{vegnummer}S{delstrekning_fra}-{delstrekning_til}'
 
     
