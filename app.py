@@ -6,8 +6,8 @@ import geopandas as gpd
 from shapely import wkt
 import folium
 import streamlit_folium
-import xlsxwriter
 from io import BytesIO
+from datetime import datetime
 
 def skred_type_by_month(data_df):
     color_map = {
@@ -223,15 +223,11 @@ def kart(df):
         ).add_to(m)
     return streamlit_folium.folium_static(m)
 
-def last_ned_shape(skred):
-    df = pd.DataFrame.from_records(skred.to_records())
-    df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 
-                    'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 
-                    'geometri', 'vref']].copy() 
-
-    df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
+def last_ned_shape(df, type='linje'):
+    st.write(df)
+    df['Skred_dato'] = df['Skred_dato'].astype(str)
     df['geometri'] = df['geometri'].apply(wkt.loads)
-    gdf = gpd.GeoDataFrame(df, geometry='geometry')
+    gdf = gpd.GeoDataFrame(df, geometry='geometri')
     gdf.crs = "EPSG:32633"
     return gdf
 
@@ -278,17 +274,25 @@ def create_point_map(df):
     
     return m
 
-def databehandling(skred):
-    
+@st.cache_data
+def hent_data(filter):
+    skred = nvdbapiv3.nvdbFagdata(445)
+    skred.filter(filter)
+    st.write(f'Antall skredregisteringar på strekninga: {skred.statistikk()["antall"]} stk')
+    st.write(f'Total lengde registert for registerte skredhendingar: {int(skred.statistikk()["lengde"])} meter')
     df = pd.DataFrame.from_records(skred.to_records())
     df_utvalg = df[['Skred dato', 'Type skred', 'Volum av skredmasser på veg', 
-                    'Stedsangivelse', 'Værforhold på vegen', 'Blokkert veglengde', 
+                    'Stedsangivelse', 'Løsneområde', 'Værforhold på vegen', 'Blokkert veglengde', 
                     'geometri', 'vref']].copy() 
-
     df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
     df_utvalg['Skred_dato'] = pd.to_datetime(df_utvalg['Skred_dato'], errors='coerce')
-
     return df_utvalg
+
+def filter_df(df, losneomrade, fradato, tildato):
+    filtered_df = df[(df['Skred_dato'] >= fradato) & 
+                 (df['Skred_dato'] <= tildato) & 
+                 (df['Løsneområde'].isin(losneomrade))]
+    return filtered_df
 
 def last_ned_excel(df):
     output = BytesIO()
@@ -303,8 +307,28 @@ st.set_page_config(page_title='NVDB skreddata', page_icon=None, layout="centered
 
 st.title('NVDB skreddata')
 st.write('Henter data fra NVDB api v3, ved nedhenting av fylker og heile landet tek det ein del tid å hente data')
+col_tid_fra, col_tid_til = st.columns(2)
+with col_tid_fra:
+    fradato = st.date_input('Fra dato', value=pd.to_datetime('2000-01-01'), min_value=pd.to_datetime('1900-01-01'), max_value=pd.to_datetime(datetime.today().strftime('%Y-%m-%d')))
+    fradato = str(fradato)
+with col_tid_til:
+    tildato = st.date_input('Til dato', value=pd.to_datetime(datetime.today().strftime('%Y-%m-%d')), min_value=pd.to_datetime('1900-01-01'), max_value=pd.to_datetime(datetime.today().strftime('%Y-%m-%d')))
+    tildato = str(tildato)
+losneomrade = st.multiselect(
+    'Velg løsneområder',
+    ['Fjell/dalside', 'Vegskjæring', 'Ur', 'Inne i tunnel', 'Tunnelmunning (historisk)'],
+    ['Fjell/dalside', 'Vegskjæring'])
 
-utvalg = st.radio('Velg utaksmåte', ['Vegreferanse', 'Vegreferanse uvida', 'Landsdekkande', 'Fylke', 'Kontraktsområde'])
+col_uttak, col_kart = st.columns(2)
+with col_uttak:
+    utvalg = st.radio('Velg utaksmåte', ['Veg', 'Vegreferanse', 'Landsdekkande', 'Fylke', 'Kontraktsområde'])
+with col_kart:
+    karttype = False
+    vis_kart = st.checkbox('Vis kart')
+    if vis_kart:
+        karttype = st.radio('Vis kart med linjer eller punkter', ['Linjer', 'Punkter'])
+st.divider()
+
 
 if utvalg == 'Fylke':
     st.write('OBS! Kan ta lang tid å hente data')
@@ -326,32 +350,34 @@ if utvalg == 'Fylke':
     "Viken": "30"
     }
 
+    if st.button('Hent skreddata'):
 
-    if st.button('Hent skreddata'):   
-        skred = nvdbapiv3.nvdbFagdata(445)
-        skred.filter({'fylke' : fylker[fylke]})
-
-        df_utvalg = databehandling(skred)
+        filter = {'fylke': fylker[fylke]}
+        df_data = hent_data(filter)
+        df = filter_df(df_data, losneomrade, fradato, tildato)
         st.download_button(
             "Last ned skredpunkt",
-            df_utvalg.to_csv().encode("utf-8"),
+            df.to_csv().encode("utf-8"),
             "klimadata.csv",
             "text/csv",
             key="download-csv",
         )
-        st.altair_chart(plot(df_utvalg), use_container_width=True)
-        st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
-        st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
-
-        kart(df_utvalg)
+        st.altair_chart(plot(df), use_container_width=True)
+        st.altair_chart(skred_type_counts(df), use_container_width=True)
+        st.altair_chart(skred_type_by_month(df), use_container_width=True)
+        if karttype == 'Punkter':
+            streamlit_folium.folium_static(create_point_map(df))
+        if karttype == 'Linjer':
+            kart(df)
 
 if utvalg == 'Landsdekkande':
     st.write('OBS! Tar lang tid å hente data')
 
     if st.button('Hent skreddata'):
-        skred = nvdbapiv3.nvdbFagdata(445)
 
-        df_utvalg = databehandling(skred)
+        filter = {}
+        df_data = hent_data(filter)
+        df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
         st.download_button(
             "Last ned skredpunkt",
             df_utvalg.to_csv().encode("utf-8"),
@@ -362,20 +388,22 @@ if utvalg == 'Landsdekkande':
         st.altair_chart(plot(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
-        kart(df_utvalg)
+        if karttype == 'Punkter':
+            streamlit_folium.folium_static(create_point_map(df_utvalg))
+        if karttype == 'Linjer':
+            kart(df_utvalg)
 
-if utvalg == 'Vegreferanse':
-    st.write('Kunn for heile vegstrekninger, eller heile vegklasser')
+
+if utvalg == 'Veg':
+ 
     st.write('Eksempel: Rv5, Fv53, Ev39')
     st.write('Det går og an å gi inn Rv, Ev, eller Fv for alle skred på vegklassene.')
     vegreferanse = st.text_input('Vegreferanse', 'Rv5')
 
     if st.button('Hent skreddata'):
-    #try:
-        skred = nvdbapiv3.nvdbFagdata(445)
-        skred.filter({'vegsystemreferanse' : vegreferanse})
-
-        df_utvalg = databehandling(skred)
+        filter = {'vegsystemreferanse' : vegreferanse}
+        df_data = hent_data(filter)
+        df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
         st.download_button(
             "Last ned skredpunkt",
             df_utvalg.to_csv().encode("utf-8"),
@@ -383,15 +411,27 @@ if utvalg == 'Vegreferanse':
             "text/csv",
             key="download-csv",
         )
+        st.download_button(
+            "Last ned skredpunkt",
+            last_ned_shape(df_utvalg).to_file('klimadata.shp', encoding='iso-8859-1'),
+            "klimadata.shp",
+            "application/octet-stream"
+        )
+
+        
         st.altair_chart(plot(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
         st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
 
-        streamlit_folium.folium_static(create_point_map(df_utvalg))
+        if karttype == 'Punkter':
+            streamlit_folium.folium_static(create_point_map(df_utvalg))
+        if karttype == 'Linjer':
+            kart(df_utvalg)
 
 
-if utvalg == 'Vegreferanse uvida':
-    
+
+if utvalg == 'Vegreferanse':
+    st.write('Her går det an å gi inn vegreferanse for å hente ut skredpunkt for delstrekning, og meterverdi.')
     vegnummer = st.text_input('Vegnummer', 'Rv5')
     col1, col2 = st.columns(2)
     with col1:
@@ -402,14 +442,13 @@ if utvalg == 'Vegreferanse uvida':
         meterverdi_til = st.number_input('Meterverdi til', 20000)
     vegreferanse = f'{vegnummer}S{delstrekning_fra}-{delstrekning_til}'
 
-    karttype = st.radio('Vis kart med linjer eller punkter', ['Punkter', 'Linjer'])
+    
 
     if st.button('Hent skreddata'):
-        #try:
-        skred = nvdbapiv3.nvdbFagdata(445)
-        skred.filter({'vegsystemreferanse' : vegreferanse})
-
-        df_utvalg = databehandling(skred)
+        filter = {'vegsystemreferanse' : vegreferanse}
+        df_data = hent_data(filter)
+        df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
+        
         
         # Extract segment as int
         df_utvalg['segment'] = df_utvalg['vref'].str.extract(r'S(\d+)D\d+').astype(int)
@@ -419,17 +458,14 @@ if utvalg == 'Vegreferanse uvida':
         df_utvalg['start_distance'] = df_utvalg['start_distance'].astype(int)
         df_utvalg['end_distance'] = df_utvalg['end_distance'].astype(int)
 
-        # Step 2: Data Filtering
-
-
-
+        #Filtrerer ut for å få delstrekning basert på meterverdier
         condition1 = (df_utvalg['segment'] == delstrekning_fra) & (df_utvalg['start_distance'] >= meterverdi_fra)
         condition2 = (df_utvalg['segment'] > delstrekning_fra) & (df_utvalg['segment'] < delstrekning_til)
         condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
 
         filtered_df = df_utvalg[condition1 | condition2 | condition3]
         #st.write(filtered_df)
-  
+
         st.download_button(
             "Last ned skredpunkt",
             filtered_df.to_csv().encode("utf-8"),
@@ -445,8 +481,11 @@ if utvalg == 'Vegreferanse uvida':
             streamlit_folium.folium_static(create_point_map(filtered_df))
         if karttype == 'Linjer':
             kart(filtered_df)
-        #except:
-        st.write('Ugylding vegreferanse eller vegreferanse uten skredhendelser')
+
+
+
     
 if utvalg == 'Kontraktsområde':
     st.write('Ikkje implementert enda')
+
+st.write('For spørsmål eller tilbakemelding kontakt: jan.helge.aalbu@vegvesen.no')
