@@ -8,6 +8,7 @@ import folium
 import streamlit_folium
 from io import BytesIO
 from datetime import datetime
+from datetime import datetime
 
 def skred_type_by_month(data_df):
     color_map = {
@@ -212,9 +213,9 @@ def kart(df):
     #st.write(gdf)
 
     m = folium.Map(location=[midpoint.y, midpoint.x], zoom_start=10)  # Adjust latitude and longitude to center your map
-    folium.TileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
-                 name="CartoDB Dark Matter", 
-                 attr="© OpenStreetMap contributors, © CartoDB").add_to(m)
+    #folium.TileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
+    #             name="CartoDB Dark Matter", 
+    #             attr="© OpenStreetMap contributors, © CartoDB").add_to(m)
     for _, row in gdf_wgs84.iterrows():
         geojson_row = gpd.GeoDataFrame([row]).to_json()
         folium.GeoJson(
@@ -275,7 +276,7 @@ def create_point_map(df):
     return m
 
 @st.cache_data
-def hent_data(filter):
+def databehandling(filter):
     skred = nvdbapiv3.nvdbFagdata(445)
     skred.filter(filter)
     st.write(f'Antall skredregisteringar på strekninga: {skred.statistikk()["antall"]} stk')
@@ -287,6 +288,12 @@ def hent_data(filter):
     df_utvalg.columns = df_utvalg.columns.str.replace(' ', '_')
     df_utvalg['Skred_dato'] = pd.to_datetime(df_utvalg['Skred_dato'], errors='coerce')
     return df_utvalg
+
+def filter_df(df, losneomrade, fradato, tildato):
+    filtered_df = df[(df['Skred_dato'] >= fradato) & 
+                 (df['Skred_dato'] <= tildato) & 
+                 (df['Løsneområde'].isin(losneomrade))]
+    return filtered_df
 
 def filter_df(df, losneomrade, fradato, tildato):
     filtered_df = df[(df['Skred_dato'] >= fradato) & 
@@ -323,10 +330,10 @@ col_uttak, col_kart = st.columns(2)
 with col_uttak:
     utvalg = st.radio('Velg utaksmåte', ['Veg', 'Vegreferanse', 'Landsdekkande', 'Fylke', 'Kontraktsområde'])
 with col_kart:
-    karttype = False
     vis_kart = st.checkbox('Vis kart')
     if vis_kart:
         karttype = st.radio('Vis kart med linjer eller punkter', ['Linjer', 'Punkter'])
+        st.write('OBS! Punkter gir senterpunkt av linjene')
 st.divider()
 
 
@@ -351,48 +358,51 @@ if utvalg == 'Fylke':
     }
 
     if st.button('Hent skreddata'):
-
-        filter = {'fylke': fylker[fylke]}
-        df_data = hent_data(filter)
-        df = filter_df(df_data, losneomrade, fradato, tildato)
-        st.download_button(
-            "Last ned skredpunkt",
-            df.to_csv().encode("utf-8"),
-            "klimadata.csv",
-            "text/csv",
-            key="download-csv",
-        )
-        st.altair_chart(plot(df), use_container_width=True)
-        st.altair_chart(skred_type_counts(df), use_container_width=True)
-        st.altair_chart(skred_type_by_month(df), use_container_width=True)
-        if karttype == 'Punkter':
-            streamlit_folium.folium_static(create_point_map(df))
-        if karttype == 'Linjer':
-            kart(df)
+        try:   
+            filter = {'fylke': fylker[fylke]}
+            df_data = databehandling(filter)
+            df = filter_df(df_data, losneomrade, fradato, tildato)
+            st.download_button(
+                "Last ned skredpunkt",
+                df.to_csv().encode("utf-8"),
+                "klimadata.csv",
+                "text/csv",
+                key="download-csv",
+            )
+            st.altair_chart(plot(df), use_container_width=True)
+            st.altair_chart(skred_type_counts(df), use_container_width=True)
+            st.altair_chart(skred_type_by_month(df), use_container_width=True)
+            if karttype == 'Punkter':
+                streamlit_folium.folium_static(create_point_map(df))
+            if karttype == 'Linjer':
+                kart(df)
+        except:
+            st.write('Feil med API kall, prøv igjen senere. Oslo fylke feiler alltid, og er ikkje implementert enda')
 
 if utvalg == 'Landsdekkande':
     st.write('OBS! Tar lang tid å hente data')
 
     if st.button('Hent skreddata'):
-
-        filter = {}
-        df_data = hent_data(filter)
-        df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
-        st.download_button(
-            "Last ned skredpunkt",
-            df_utvalg.to_csv().encode("utf-8"),
-            "klimadata.csv",
-            "text/csv",
-            key="download-csv",
-        )
-        st.altair_chart(plot(df_utvalg), use_container_width=True)
-        st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
-        st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
-        if karttype == 'Punkter':
-            streamlit_folium.folium_static(create_point_map(df_utvalg))
-        if karttype == 'Linjer':
-            kart(df_utvalg)
-
+        try:
+            filter = {}
+            df_data = databehandling(filter)
+            df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
+            st.download_button(
+                "Last ned skredpunkt",
+                df_utvalg.to_csv().encode("utf-8"),
+                "klimadata.csv",
+                "text/csv",
+                key="download-csv",
+            )
+            st.altair_chart(plot(df_utvalg), use_container_width=True)
+            st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
+            st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
+            if karttype == 'Punkter':
+                streamlit_folium.folium_static(create_point_map(df_utvalg))
+            if karttype == 'Linjer':
+                kart(df_utvalg)
+        except:
+            st.write('Feil med API kall, prøv igjen senere')
 
 if utvalg == 'Veg':
  
@@ -401,33 +411,27 @@ if utvalg == 'Veg':
     vegreferanse = st.text_input('Vegreferanse', 'Rv5')
 
     if st.button('Hent skreddata'):
-        filter = {'vegsystemreferanse' : vegreferanse}
-        df_data = hent_data(filter)
-        df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
-        st.download_button(
-            "Last ned skredpunkt",
-            df_utvalg.to_csv().encode("utf-8"),
-            "klimadata.csv",
-            "text/csv",
-            key="download-csv",
-        )
-        st.download_button(
-            "Last ned skredpunkt",
-            last_ned_shape(df_utvalg).to_file('klimadata.shp', encoding='iso-8859-1'),
-            "klimadata.shp",
-            "application/octet-stream"
-        )
+        try:
+            filter = {'vegsystemreferanse' : vegreferanse}
+            df_data = databehandling(filter)
+            df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
+            st.download_button(
+                "Last ned skredpunkt",
+                df_utvalg.to_csv().encode("utf-8"),
+                "klimadata.csv",
+                "text/csv",
+                key="download-csv",
+            )
+            st.altair_chart(plot(df_utvalg), use_container_width=True)
+            st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
+            st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
 
-        
-        st.altair_chart(plot(df_utvalg), use_container_width=True)
-        st.altair_chart(skred_type_counts(df_utvalg), use_container_width=True)
-        st.altair_chart(skred_type_by_month(df_utvalg), use_container_width=True)
-
-        if karttype == 'Punkter':
-            streamlit_folium.folium_static(create_point_map(df_utvalg))
-        if karttype == 'Linjer':
-            kart(df_utvalg)
-
+            if karttype == 'Punkter':
+                streamlit_folium.folium_static(create_point_map(df_utvalg))
+            if karttype == 'Linjer':
+                kart(df_utvalg)
+        except:
+            st.write('Ingen skredpunkt funnet for valgt vegreferanse, eller ugylding vegreferanse')
 
 
 if utvalg == 'Vegreferanse':
@@ -438,54 +442,59 @@ if utvalg == 'Vegreferanse':
         delstrekning_fra = st.number_input('Delstrekning fra (S1D1 = 1)', 1)
         delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', 8)
     with col2:
-        meterverdi_fra = st.number_input('Meterverdi fra', 0)
-        meterverdi_til = st.number_input('Meterverdi til', 20000)
+        meterverdi_fra = st.number_input('Meterverdi fra', value=0)
+        meterverdi_til = st.number_input('Meterverdi til', value=20000, min_value=0)
     vegreferanse = f'{vegnummer}S{delstrekning_fra}-{delstrekning_til}'
 
     
 
     if st.button('Hent skreddata'):
-        filter = {'vegsystemreferanse' : vegreferanse}
-        df_data = hent_data(filter)
-        df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
-        
-        
-        # Extract segment as int
-        df_utvalg['segment'] = df_utvalg['vref'].str.extract(r'S(\d+)D\d+').astype(int)
-        df_utvalg[['start_distance', 'end_distance']] = df_utvalg['vref'].str.extract(r'm(\d+)-(\d+)')
+        try:
+            filter = {'vegsystemreferanse' : vegreferanse}
+            df_data = databehandling(filter)
+            df_utvalg = filter_df(df_data, losneomrade, fradato, tildato)
+            
+            
+            # Extract segment as int
+            df_utvalg['segment'] = df_utvalg['vref'].str.extract(r'S(\d+)D\d+').astype(int)
+            df_utvalg[['start_distance', 'end_distance']] = df_utvalg['vref'].str.extract(r'm(\d+)-(\d+)')
 
-        # Convert the extracted distances to int
-        df_utvalg['start_distance'] = df_utvalg['start_distance'].astype(int)
-        df_utvalg['end_distance'] = df_utvalg['end_distance'].astype(int)
+            # Convert the extracted distances to int
+            df_utvalg['start_distance'] = df_utvalg['start_distance'].astype(int)
+            df_utvalg['end_distance'] = df_utvalg['end_distance'].astype(int)
 
-        #Filtrerer ut for å få delstrekning basert på meterverdier
-        condition1 = (df_utvalg['segment'] == delstrekning_fra) & (df_utvalg['start_distance'] >= meterverdi_fra)
-        condition2 = (df_utvalg['segment'] > delstrekning_fra) & (df_utvalg['segment'] < delstrekning_til)
-        condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
+            #Filtrerer ut for å få delstrekning basert på meterverdier
+            condition1 = (df_utvalg['segment'] == delstrekning_fra) & (df_utvalg['start_distance'] >= meterverdi_fra)
+            condition2 = (df_utvalg['segment'] > delstrekning_fra) & (df_utvalg['segment'] < delstrekning_til)
+            condition3 = (df_utvalg['segment'] == delstrekning_til) & (df_utvalg['end_distance'] <= meterverdi_til)
 
-        filtered_df = df_utvalg[condition1 | condition2 | condition3]
-        #st.write(filtered_df)
+            filtered_df = df_utvalg[condition1 | condition2 | condition3]
+            #st.write(filtered_df)
 
-        st.download_button(
-            "Last ned skredpunkt",
-            filtered_df.to_csv().encode("utf-8"),
-            "klimadata.csv",
-            "text/csv",
-            key="download-csv",
-        )
-        st.altair_chart(plot(filtered_df), use_container_width=True)
-        st.altair_chart(skred_type_counts(filtered_df), use_container_width=True)
-        st.altair_chart(skred_type_by_month(filtered_df), use_container_width=True)
+            st.download_button(
+                "Last ned skredpunkt",
+                filtered_df.to_csv().encode("utf-8"),
+                "klimadata.csv",
+                "text/csv",
+                key="download-csv",
+            )
+            st.altair_chart(plot(filtered_df), use_container_width=True)
+            st.altair_chart(skred_type_counts(filtered_df), use_container_width=True)
+            st.altair_chart(skred_type_by_month(filtered_df), use_container_width=True)
 
-        if karttype == 'Punkter':
-            streamlit_folium.folium_static(create_point_map(filtered_df))
-        if karttype == 'Linjer':
-            kart(filtered_df)
-
-
+            if karttype == 'Punkter':
+                streamlit_folium.folium_static(create_point_map(filtered_df))
+            if karttype == 'Linjer':
+                kart(filtered_df)
+        except:
+            st.write('Ingen skredpunkt funnet for valgt vegreferanse, eller ugylding vegreferanse')
 
     
 if utvalg == 'Kontraktsområde':
     st.write('Ikkje implementert enda')
+
+st.write('For spørsmål eller tilbakemelding kontakt: jan.helge.aalbu@vegvesen.no')
+
+st.write('For spørsmål eller tilbakemelding kontakt: jan.helge.aalbu@vegvesen.no')
 
 st.write('For spørsmål eller tilbakemelding kontakt: jan.helge.aalbu@vegvesen.no')
