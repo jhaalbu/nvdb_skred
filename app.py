@@ -494,7 +494,3 @@ if utvalg == 'Kontraktsområde':
     st.write('Ikkje implementert enda')
 
 st.write('For spørsmål eller tilbakemelding kontakt: jan.helge.aalbu@vegvesen.no')
-
-st.write('For spørsmål eller tilbakemelding kontakt: jan.helge.aalbu@vegvesen.no')
-
-st.write('For spørsmål eller tilbakemelding kontakt: jan.helge.aalbu@vegvesen.no')
