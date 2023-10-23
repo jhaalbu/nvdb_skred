@@ -212,9 +212,9 @@ def kart(df):
     #st.write(gdf)
 
     m = folium.Map(location=[midpoint.y, midpoint.x], zoom_start=10)  # Adjust latitude and longitude to center your map
-    folium.TileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
-                 name="CartoDB Dark Matter", 
-                 attr="© OpenStreetMap contributors, © CartoDB").add_to(m)
+    #folium.TileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
+    #             name="CartoDB Dark Matter", 
+    #             attr="© OpenStreetMap contributors, © CartoDB").add_to(m)
     for _, row in gdf_wgs84.iterrows():
         geojson_row = gpd.GeoDataFrame([row]).to_json()
         folium.GeoJson(
@@ -330,6 +330,7 @@ with col_kart:
     vis_kart = st.checkbox('Vis kart')
     if vis_kart:
         karttype = st.radio('Vis kart med linjer eller punkter', ['Linjer', 'Punkter'])
+        st.write('OBS! Punkter gir senterpunkt av linjene)
 st.divider()
 
 
