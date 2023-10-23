@@ -330,7 +330,7 @@ with col_kart:
     vis_kart = st.checkbox('Vis kart')
     if vis_kart:
         karttype = st.radio('Vis kart med linjer eller punkter', ['Linjer', 'Punkter'])
-        st.write('OBS! Punkter gir senterpunkt av linjene)
+        st.write('OBS! Punkter gir senterpunkt av linjene')
 st.divider()
 
 
