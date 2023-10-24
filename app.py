@@ -439,8 +439,8 @@ if utvalg == 'Vegreferanse':
     vegnummer = st.text_input('Vegnummer', 'Rv5')
     col1, col2 = st.columns(2)
     with col1:
-        delstrekning_fra = st.number_input('Delstrekning fra (S1D1 = 1)', 1)
-        delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', 8)
+        delstrekning_fra = st.number_input('Delstrekning fra (S1D1 = 1)', value=11, min_value=1)
+        delstrekning_til = st.number_input('Delstrekning til (S8D1 = 8)', value=8, min_value=1)
     with col2:
         meterverdi_fra = st.number_input('Meterverdi fra', value=0)
         meterverdi_til = st.number_input('Meterverdi til', value=20000, min_value=0)
