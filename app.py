@@ -342,7 +342,7 @@ if utvalg == 'Fylke':
     fylke = st.selectbox(
     'Velg fylke',
     ('Agder', 'Innlandet', 'Møre og Romsdal', 'Nordland',  'Oslo', 'Rogaland', 'Troms og Finnmark', 'Trøndelag',  'Vestfold og Telemark', 'Vestland', 'Viken'))
-    
+    vegreferanse = st.text_input('Vegreferanse, f.eks Fv, Ev, Rv, eller spesifikk veg som Rv13, eller delstrekning som Rv5 S8D1', 'Fv')
     fylker = {
     "Agder": "42",
     "Innlandet": "34",
@@ -359,7 +359,7 @@ if utvalg == 'Fylke':
 
     if st.button('Hent skreddata'):
         try:   
-            filter = {'fylke': fylker[fylke]}
+            filter = {'fylke': fylker[fylke], 'vegsystemreferanse': vegreferanse}
             df_data = databehandling(filter)
             df = filter_df(df_data, losneomrade, fradato, tildato)
             st.download_button(
