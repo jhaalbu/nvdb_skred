@@ -344,7 +344,7 @@ if utvalg == 'Fylke':
     ('Agder', 'Innlandet', 'Møre og Romsdal', 'Nordland',  'Oslo', 'Rogaland', 'Troms og Finnmark', 'Trøndelag',  'Vestfold og Telemark', 'Vestland', 'Viken'))
     
     vegreferanse = st.text_input('Videre eventuell filtrering på vegreferanse, f.eks Fv, Ev, Rv, Rv13, eller delstrekning som Rv5 S8D1', '')
-    
+    st.write('Du kan f.eks få med både riksveg og europaveg ved å skrive inn: Rv, Ev. Alle gyldige vegreferanser separert med komma skal fungere.' )
     fylker = {
     "Agder": "42",
     "Innlandet": "34",
