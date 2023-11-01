@@ -381,8 +381,10 @@ if utvalg == 'Fylke':
                 streamlit_folium.folium_static(create_point_map(df))
             if karttype == 'Linjer':
                 kart(df)
-        except:
-            st.write('Feil med API kall, prøv igjen senere. Oslo fylke feiler alltid, og er ikkje implementert enda')
+        except ValueError:
+            st.write('Feil oppstått, mest truleg feil vegreferanse. Prøv igjen med ny vegreferanse.')
+        except KeyError:
+            st.write('Ingen skredpunkt funnet på strekninga, eller ingen gyldig strekning.')
 
 if utvalg == 'Landsdekkande':
     st.write('OBS! Tar lang tid å hente data')
@@ -406,8 +408,10 @@ if utvalg == 'Landsdekkande':
                 streamlit_folium.folium_static(create_point_map(df_utvalg))
             if karttype == 'Linjer':
                 kart(df_utvalg)
-        except:
-            st.write('Feil med API kall, prøv igjen senere')
+        except ValueError:
+            st.write('Feil oppstått, mest truleg feil vegreferanse. Prøv igjen med ny vegreferanse.')
+        except KeyError:
+            st.write('Ingen skredpunkt funnet på strekninga, eller ingen gyldig strekning.')
 
 if utvalg == 'Veg':
  
@@ -435,8 +439,10 @@ if utvalg == 'Veg':
                 streamlit_folium.folium_static(create_point_map(df_utvalg))
             if karttype == 'Linjer':
                 kart(df_utvalg)
-        except:
-            st.write('Ingen skredpunkt funnet for valgt vegreferanse, eller ugylding vegreferanse')
+        except ValueError:
+            st.write('Feil oppstått, mest truleg feil vegreferanse. Prøv igjen med ny vegreferanse.')
+        except KeyError:
+            st.write('Ingen skredpunkt funnet på strekninga, eller ingen gyldig strekning.')
 
 
 if utvalg == 'Vegreferanse':
@@ -491,8 +497,10 @@ if utvalg == 'Vegreferanse':
                 streamlit_folium.folium_static(create_point_map(filtered_df))
             if karttype == 'Linjer':
                 kart(filtered_df)
-        except:
-            st.write('Ingen skredpunkt funnet for valgt vegreferanse, eller ugylding vegreferanse')
+        except ValueError:
+            st.write('Feil oppstått, mest truleg feil vegreferanse. Prøv igjen med ny vegreferanse.')
+        except KeyError:
+            st.write('Ingen skredpunkt funnet på strekninga, eller ingen gyldig strekning.')
 
     
 if utvalg == 'Kontraktsområde':
